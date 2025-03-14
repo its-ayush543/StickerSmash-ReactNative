@@ -15,8 +15,8 @@ export default function ImageViewer({imgSource, selectedImage}:Props) {
 }
 const styles = StyleSheet.create({
     image:{
-        width:350,
-        height:460,
+        width:320,
+        height:440,
         borderRadius:18,
     }
 })
