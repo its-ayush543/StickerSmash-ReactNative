@@ -1,5 +1,5 @@
 import * as MediaLibrary from "expo-media-library";
-import { Text, View } from "react-native";
+import { Platform, Text, View } from "react-native";
 import { StyleSheet } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { type ImageSource } from "expo-image";
@@ -13,11 +13,12 @@ import EmojiSticker from "@/components/EmojiSticker";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useState, useRef, useEffect } from "react";
 import { captureRef } from "react-native-view-shot";
+import domtoimage from "dom-to-image";
 
 const PlaceholderImagge = require("@/assets/images/background-image.png");
 
 export default function Index() {
-  const imageRef = useRef<View>(null);
+  const imageRef = useRef<any>(null);
   const [status, requestPermission] = MediaLibrary.usePermissions();
   const [selectedImage, setSelectedImage] = useState<string | undefined>(
     undefined
@@ -64,22 +65,39 @@ export default function Index() {
   };
 
   const onSaveImageAsync = async () => {
-    try {
-      if (imageRef.current) {
-        const localUri = await captureRef(imageRef, {
+    if (Platform.OS !== "web") {
+      try {
+        if (imageRef.current) {
+          const localUri = await captureRef(imageRef, {
+            height: 440,
+            quality: 1,
+          });
+
+          if (localUri) {
+            await MediaLibrary.saveToLibraryAsync(localUri);
+            alert("Saved!");
+          }
+        } else {
+          alert("Image reference is not set");
+        }
+      } catch (e) {
+        console.log("Error capturing view:", e);
+      }
+    } else {
+      try {
+        const dataUrl = await domtoimage.toJpeg(imageRef.current, {
+          quality: 0.95,
+          width: 320,
           height: 440,
-          quality: 1,
         });
 
-        if (localUri) {
-          await MediaLibrary.saveToLibraryAsync(localUri);
-          alert("Saved!");
-        }
-      } else {
-        alert("Image reference is not set");
+        let link = document.createElement("a");
+        link.download = "sticker-smash.jpeg";
+        link.href = dataUrl;
+        link.click();
+      } catch (e) {
+        console.log(e);
       }
-    } catch (e) {
-      console.log("Error capturing view:", e);
     }
   };
 
