@@ -1,20 +1,24 @@
+import * as MediaLibrary from "expo-media-library";
 import { Text, View } from "react-native";
 import { StyleSheet } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { type ImageSource } from "expo-image";
 import ImageViewer from "@/components/ImageViewer";
 import Button from "@/components/Button";
-import { useState } from "react";
 import IconButton from "@/components/IconButton";
 import CircleButton from "@/components/CircleButton";
 import EmojiPicker from "@/components/EmojiPicker";
 import EmojiList from "@/components/EmojiList";
 import EmojiSticker from "@/components/EmojiSticker";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { useState, useRef, useEffect } from "react";
+import { captureRef } from "react-native-view-shot";
 
 const PlaceholderImagge = require("@/assets/images/background-image.png");
 
 export default function Index() {
+  const imageRef = useRef<View>(null);
+  const [status, requestPermission] = MediaLibrary.usePermissions();
   const [selectedImage, setSelectedImage] = useState<string | undefined>(
     undefined
   );
@@ -24,9 +28,15 @@ export default function Index() {
     undefined
   );
 
+  useEffect(() => {
+    if (status === null) {
+      requestPermission();
+    }
+  }, [status]);
+
   const pickImageAsync = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 1,
     });
@@ -41,6 +51,8 @@ export default function Index() {
 
   const onReset = () => {
     setShowAppOptions(false);
+    setSelectedImage(undefined);
+    setPickedEmoji(undefined);
   };
 
   const onAddSticker = () => {
@@ -51,11 +63,30 @@ export default function Index() {
     setIsModalVisible(false);
   };
 
-  const onSaveImageAsync = () => {};
+  const onSaveImageAsync = async () => {
+    try {
+      if (imageRef.current) {
+        const localUri = await captureRef(imageRef, {
+          height: 440,
+          quality: 1,
+        });
+
+        if (localUri) {
+          await MediaLibrary.saveToLibraryAsync(localUri);
+          alert("Saved!");
+        }
+      } else {
+        alert("Image reference is not set");
+      }
+    } catch (e) {
+      console.log("Error capturing view:", e);
+    }
+  };
+
   return (
     <GestureHandlerRootView style={styles.container}>
-      <View style={styles.container}>
-        <View style={styles.imageContainer}>
+      <View style={styles.imageContainer}>
+        <View ref={imageRef} collapsable={false}>
           <ImageViewer
             imgSource={PlaceholderImagge}
             selectedImage={selectedImage}
@@ -64,41 +95,42 @@ export default function Index() {
             <EmojiSticker imageSize={40} stickerSource={pickedEmoji} />
           )}
         </View>
-        {showAppOptions ? (
-          <View style={styles.optionsContainer}>
-            <View style={styles.optionsRow}>
-              <IconButton icon="refresh" label="Reset" onPress={onReset} />
-              <CircleButton onPress={onAddSticker} />
-              <IconButton
-                icon="save-alt"
-                label="Save"
-                onPress={onSaveImageAsync}
-              />
-            </View>
-          </View>
-        ) : (
-          <View style={styles.footerContainer}>
-            <Button
-              theme="primary"
-              label="Choose a Photo"
-              onPress={pickImageAsync}
-            />
-            <Button
-              label="Use this Photo"
-              onPress={() => setShowAppOptions(true)}
-            />
-          </View>
-        )}
-        <EmojiPicker isVisible={isModalVisible} onClose={onModalClose}>
-          <EmojiList onSelect={setPickedEmoji} onCLoseModal={onModalClose} />
-        </EmojiPicker>
       </View>
+
+      {showAppOptions ? (
+        <View style={styles.optionsContainer}>
+          <View style={styles.optionsRow}>
+            <IconButton icon="refresh" label="Reset" onPress={onReset} />
+            <CircleButton onPress={onAddSticker} />
+            <IconButton
+              icon="save-alt"
+              label="Save"
+              onPress={onSaveImageAsync}
+            />
+          </View>
+        </View>
+      ) : (
+        <View style={styles.footerContainer}>
+          <Button
+            theme="primary"
+            label="Choose a Photo"
+            onPress={pickImageAsync}
+          />
+          <Button
+            label="Use this Photo"
+            onPress={() => setShowAppOptions(true)}
+          />
+        </View>
+      )}
+      <EmojiPicker isVisible={isModalVisible} onClose={onModalClose}>
+        <EmojiList onSelect={setPickedEmoji} onCLoseModal={onModalClose} />
+      </EmojiPicker>
     </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
-  container:{
+  container: {
     flex: 1,
     backgroundColor: "#25292e",
     alignItems: "center",
@@ -107,7 +139,6 @@ const styles = StyleSheet.create({
   imageContainer: {
     flex: 1,
   },
-
   footerContainer: {
     flex: 1 / 3,
     alignItems: "center",
